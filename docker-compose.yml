@@ -1,0 +1,71 @@
+# Docker-compose for graylog.
+# Requires:
+#   Files:    elasticsearch.env, graylog.env
+#   Volumes:  graylog_elasticsearch, graylog_graylog, 
+#             graylog_mongodb
+#   Networks: graylog
+
+version: '3.7'
+
+networks:
+  graylog:
+    external: true
+services:
+  # https://www.docker.elastic.co/r/elasticsearch
+  elasticsearch:
+    env_file: elasticsearch.env
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+    networks:
+      graylog: null
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+    - graylog_elasticsearch:/usr/share/elasticsearch/data:rw
+
+  # gl-get2mongo: https://github.com/solvaholic/gl-get2mongo
+  get2mongo:
+    depends_on:
+      - mongo
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gl-get2mongo
+    networks:
+      graylog: null
+
+  # Graylog: https://hub.docker.com/r/graylog/graylog/
+  graylog:
+    depends_on:
+      - elasticsearch
+      - mongo
+    env_file: graylog.env
+    image: graylog/graylog:4.0
+    networks:
+      graylog: null
+    ports:
+      # Web interface
+      - 9000:9000
+      # Syslog UDP
+      - 1514:1514/udp
+      # Netflow UDP
+      - 2055:2055/udp
+      # GELF UDP
+      - 12201:12201/udp
+    volumes:
+    - graylog_graylog:/usr/share/graylog/data:rw
+    # MongoDB: https://hub.docker.com/_/mongo/
+  mongo:
+    image: mongo:4.2
+    networks:
+      graylog: null
+    volumes:
+    - graylog_mongodb:/data/db:rw
+volumes:
+  graylog_elasticsearch:
+    external: true
+  graylog_graylog:
+    external: true
+  graylog_mongodb:
+    external: true
