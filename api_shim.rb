@@ -22,6 +22,14 @@ require 'sinatra'
 require 'json'
 require 'mongo'
 
+# Parse input and connect to the database
+def monkey params
+  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
+  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
+  collection = client[:get2mongo]
+  return obj, collection
+end
+
 # Define output function
 def json data_object
   content_type :json
@@ -34,9 +42,7 @@ set :port, 4567
 
 # GET to Create
 get '/create/' do
-  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
-  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
-  collection = client[:get2mongo]
+  obj, collection = monkey params
   # Create requires key and value
   unless obj['key'] && obj['value']
     # Didn't receive required params, return Bad Request
@@ -64,9 +70,7 @@ end
 
 # GET to Read
 get '/read/' do
-  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
-  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
-  collection = client[:get2mongo]
+  obj, collection = monkey params
   # Read requires key
   unless obj['key']
     # Didn't receive required param, return Bad Request
@@ -92,9 +96,7 @@ end
 
 # GET to Update
 get '/update/' do
-  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
-  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
-  collection = client[:get2mongo]
+  obj, collection = monkey params
   # Update requires key and value
   unless obj['key'] && obj['value']
     # Didn't receive required params, return Bad Request
@@ -122,9 +124,7 @@ end
 
 # GET to Delete
 get '/delete/' do
-  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
-  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
-  collection = client[:get2mongo]
+  obj, collection = monkey params
   # Delete requires key
   unless obj['key']
     # Didn't receive required param, return Bad Request
