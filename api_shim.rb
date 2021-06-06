@@ -28,19 +28,38 @@ def json data_object
   data_object.to_json
 end
 
-# Define the database collection
-def collection
-  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
-  client[:get2mongo]
-end
-
 # Say explicitly where to listen
 set :bind, '0.0.0.0'
 set :port, 4567
 
 # GET to Create
 get '/create/' do
-  json "{'key' => 'BLAH', 'value' => 'CREATED'}"
+  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
+  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
+  collection = client[:get2mongo]
+  # Create requires key and value
+  unless obj['key'] && obj['value']
+    # Didn't receive required params, return Bad Request
+    status 400
+    return json obj
+  end
+  # Don't create document if key exists
+  if collection.find( { :key => obj['key'] } ).count > 0
+    # Document with this key already exists, return Conflict
+    status 409
+    return json obj
+  end
+  # Attempt to create the document
+  doc = { key: obj['key'], value: obj['value'] }
+  if collection.insert_one( doc ).n == 1
+    # One document was created or updated, return OK
+    status 200
+    return json obj
+  else
+    # Something went wrong, return Internal Server Error
+    status 500
+    return json obj
+  end
 end
 
 # GET to Read
