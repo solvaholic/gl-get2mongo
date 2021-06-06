@@ -64,17 +64,88 @@ end
 
 # GET to Read
 get '/read/' do
-  json "{'key' => 'BLAH', 'value' => 'READ'}"
+  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
+  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
+  collection = client[:get2mongo]
+  # Read requires key
+  unless obj['key']
+    # Didn't receive required param, return Bad Request
+    status 400
+    return json obj
+  end
+  # Attempt to read the document
+  doc = collection.find(:key => obj['key']).first
+  if doc == nil
+    # Document was not found, return Not Found
+    status 404
+    return json obj
+  elsif doc['key'] == obj['key']
+    # Document was found, return OK
+    status 200
+    return json doc
+  else
+    # Something went wrong, return Internal Server Error
+    status 500
+    return json obj
+  end
 end
 
 # GET to Update
 get '/update/' do
-  json "{'key' => 'BLAH', 'value' => 'UPDATED'}"
+  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
+  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
+  collection = client[:get2mongo]
+  # Update requires key and value
+  unless obj['key'] && obj['value']
+    # Didn't receive required params, return Bad Request
+    status 400
+    return json obj
+  end
+  # Attempt to update the document
+  doc = { key: obj['key'], value: obj['value'] }
+  result = collection.find_one_and_update(
+    { :key => doc[:key] },
+    { '$set' => doc },
+    { upsert: true } )
+  if result == nil
+    # Document was created, return OK
+    status 200
+  elsif result['key'] == doc[:key]
+    # Document was updated, return OK
+    status 200
+  else
+    # Something went wrong, return Internal Server Error
+    status 500
+  end
+  return json obj
 end
 
 # GET to Delete
 get '/delete/' do
-  json "{'key' => 'BLAH', 'value' => 'DELETED'}"
+  obj = JSON.parse( CGI.unescape( params['key'].to_str ) )
+  client = Mongo::Client.new('mongodb://mongo:27017/solvahol')
+  collection = client[:get2mongo]
+  # Delete requires key
+  unless obj['key']
+    # Didn't receive required param, return Bad Request
+    status 400
+    return json obj
+  end
+  # Attempt to delete the document
+  result = collection.find(:key => obj['key'])
+  if result.count == 0
+    # Document was not found, return Not Found
+    status 404
+    return json obj
+  elsif result.delete_one.deleted_count == 1
+    # Document was deleted, return OK
+    status 200
+    return json obj
+  else
+    # Something went wrong, return Internal Server Error
+    status 500
+    return json obj
+  end
 end
 
 # Define healthcheck endpoint
